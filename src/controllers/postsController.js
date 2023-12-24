@@ -5,10 +5,39 @@ const { db } = require("../utils/connectDb");
 // GET posts
 const getPosts = async (req, res) => {
   try {
-    const posts = await db.posts.find({}).toArray();
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 5;
+    const skip = (page - 1) * pageSize;
+    const pipeline = [
+      {
+        $lookup: {
+          from: "users",
+          localField: "author",
+          foreignField: "_id",
+          as: "author",
+        },
+      },
+      {
+        $unwind: "$author",
+      },
+      {
+        $facet: {
+          paginatedPosts: [{ $skip: skip }, { $limit: pageSize }],
+          totalCount: [{ $count: "count" }],
+        },
+      },
+    ];
+    const [result] = await db.posts.aggregate(pipeline).toArray(); 
+    const { paginatedPosts, totalCount } = result;
+    const totalPosts = totalCount.length > 0 ? totalCount[0].count : 0;
+    const totalPages = Math.ceil(totalPosts / pageSize);
     res.status(200).json({
       message: "Get post list successful",
-      data: posts,
+      data: paginatedPosts,
+      page,
+      pageSize,
+      totalPages,
+      totalCount: totalPosts,
       isSuccess: true,
     });
   } catch (error) {

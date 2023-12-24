@@ -10,6 +10,7 @@ async function connectDb() {
   const database = client.db(DATABASE);
 
   db.posts = database.collection("posts");
+  db.users = database.collection("users");
 }
 
 module.exports = { connectDb, db };
